@@ -11,18 +11,15 @@ class User {
   final String name;
   final String avatarUrl;
 
-  User({
-    required this.id,
-    required this.name,
-    required this.avatarUrl,
-  });
+  User({required this.id, required this.name, required this.avatarUrl});
 
   factory User.fromJson(Map<String, dynamic> json) => User(
-        id: json['id'] as int,
-        name: json['name'] as String? ?? 'User ${json['id']}',
-        avatarUrl: json['avatar_url'] as String? ??
-            'https://www.idsurfaces.co.uk/media/.../default.png',
-      );
+    id: json['id'] as int,
+    name: json['name'] as String? ?? 'User ${json['id']}',
+    avatarUrl:
+        json['avatar_url'] as String? ??
+        'https://www.idsurfaces.co.uk/media/.../default.png',
+  );
 }
 
 class HomePage extends StatelessWidget {
@@ -75,8 +72,7 @@ class HomePage extends StatelessWidget {
             itemBuilder: (context, i) {
               final u = users[i];
               return Card(
-                margin:
-                    const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundImage: NetworkImage(u.avatarUrl),
@@ -85,9 +81,7 @@ class HomePage extends StatelessWidget {
                   subtitle: Text('ID: ${u.id}'),
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ChatsPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ChatsPage()),
                     );
                   },
                 ),
