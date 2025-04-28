@@ -1,12 +1,10 @@
-// lib/services/auth_repository.dart
-
 import 'dart:convert';
 import 'package:flutter_chat_app/models/user.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthRepository {
-  final _baseUrl = 'http://127.0.0.1:8000';
+  final _baseUrl = 'http://10.0.2.2:8000';
   static const _tokenKey = 'jwt_token';
 
   Future<User> logIn({
@@ -15,8 +13,14 @@ class AuthRepository {
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/api/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'username': username, 'password': password}),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {
+        'grant_type': 'password',
+        'username': username,
+        'password': password,
+      },
     );
 
     if (res.statusCode == 200) {
