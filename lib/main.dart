@@ -73,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
                 if (state is AuthAuthenticated) {
                   return Column(
                     children: [
-                      Text('Welcome, ${state.user.username}!'),
+                      Text('Welcome !'),
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: () => context.read<AuthBloc>().add(AuthLogoutRequested()),

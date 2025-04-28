@@ -1,14 +1,10 @@
-// lib/bloc/auth_bloc.dart
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_chat_app/services/auth_repository.dart';
+import '../services/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _repo;
-  String? _token;
-
   AuthBloc(this._repo) : super(AuthInitial()) {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
@@ -20,12 +16,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      final user = await _repo.logIn(
+      final token = await _repo.logIn(
         username: event.username,
         password: event.password,
       );
-      _token = user.token; // cache in memory if you need it elsewhere
-      emit(AuthAuthenticated(user));
+      emit(AuthAuthenticated(token));
     } catch (e) {
       emit(AuthFailure(e.toString()));
     }
@@ -36,12 +31,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    try {
-      await _repo.logOut();
-      _token = null;
-      emit(AuthUnauthenticated());
-    } catch (e) {
-      emit(AuthFailure(e.toString()));
-    }
+    await _repo.logOut();
+    emit(AuthUnauthenticated());
   }
 }
