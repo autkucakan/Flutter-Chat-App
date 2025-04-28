@@ -1,11 +1,12 @@
-// lib/home.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'chats.dart'; // ChatsPage’e yönlendirme için
+import 'chats.dart';
+import 'bloc/auth_bloc.dart';
+import 'bloc/auth_event.dart';
 
-/// Basit User modeli, API’den gelen JSON’a göre uyarlanmış
 class User {
   final int id;
   final String name;
@@ -23,7 +24,7 @@ class User {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   Future<List<User>> fetchUsers() async {
     final prefs = await SharedPreferences.getInstance();
@@ -53,7 +54,25 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'logout') {
+                context.read<AuthBloc>().add(AuthLogoutRequested());
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Text('Logout'),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: FutureBuilder<List<User>>(
         future: fetchUsers(),
         builder: (context, snapshot) {
