@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../services/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
-
+// naber fıstık
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _repo;
   AuthBloc(this._repo) : super(AuthInitial()) {
