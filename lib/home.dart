@@ -3,37 +3,38 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'chats.dart'; // ChatsPage’e yönlendirme için
 
-/// Simple User model matching your API response
+/// Basit User modeli, API’den gelen JSON’a göre uyarlanmış
 class User {
   final int id;
   final String name;
   final String avatarUrl;
 
-  User({required this.id, required this.name, required this.avatarUrl});
+  User({
+    required this.id,
+    required this.name,
+    required this.avatarUrl,
+  });
 
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as int,
-      name: json['name'] as String? ?? 'User ${json['id']}',
-      avatarUrl: json['avatar_url'] as String? ??
-          'https://www.idsurfaces.co.uk/media/.../default.png',
-    );
-  }
+  factory User.fromJson(Map<String, dynamic> json) => User(
+        id: json['id'] as int,
+        name: json['name'] as String? ?? 'User ${json['id']}',
+        avatarUrl: json['avatar_url'] as String? ??
+            'https://www.idsurfaces.co.uk/media/.../default.png',
+      );
 }
 
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
   Future<List<User>> fetchUsers() async {
-    // 1. pull your token out of SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
     if (token == null) {
-      throw Exception('Not authenticated: no JWT found in storage');
+      throw Exception('Not authenticated: no JWT found');
     }
 
-    // 2. include it in your request
     final res = await http.get(
       Uri.parse('http://172.16.12.215:8000/api/users'),
       headers: {
@@ -43,12 +44,12 @@ class HomePage extends StatelessWidget {
     );
 
     if (res.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(res.body);
-      return data.map((e) => User.fromJson(e)).toList();
+      final data = jsonDecode(res.body) as List<dynamic>;
+      return data.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
     } else if (res.statusCode == 401) {
-      throw Exception('Unauthorized (401): your token was rejected');
+      throw Exception('Unauthorized (401)');
     } else {
-      throw Exception('Failed to load users: ${res.statusCode} ${res.body}');
+      throw Exception('Error ${res.statusCode}: ${res.body}');
     }
   }
 
@@ -71,7 +72,7 @@ class HomePage extends StatelessWidget {
           }
           return ListView.builder(
             itemCount: users.length,
-            itemBuilder: (_, i) {
+            itemBuilder: (context, i) {
               final u = users[i];
               return Card(
                 margin:
@@ -82,6 +83,13 @@ class HomePage extends StatelessWidget {
                   ),
                   title: Text(u.name),
                   subtitle: Text('ID: ${u.id}'),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ChatsPage(),
+                      ),
+                    );
+                  },
                 ),
               );
             },
