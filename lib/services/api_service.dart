@@ -7,7 +7,7 @@ import 'package:web_socket_channel/io.dart';
 
 class ApiService {
   // === Configuration ===
-  static const String _baseUrl = 'http://10.0.2.2:8000/api';
+  static const String _baseUrl = 'http://172.16.12.215:8000/api';
   static const String _tokenKey = 'jwt_token';
 
   final http.Client _client;
@@ -207,7 +207,7 @@ class ApiService {
     }
     final uri = Uri(
       scheme: 'ws',
-      host: '10.0.2.2',
+      host: '172.16.12.215',
       port: 8000,
       path: '/api/ws/chat/$chatId',
       queryParameters: {'token': _token},

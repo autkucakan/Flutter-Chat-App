@@ -1,11 +1,12 @@
+// lib/views/chat_view.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat_app/bloc/messages/messages_bloc.dart';
 import 'package:flutter_chat_app/bloc/messages/messages_event.dart';
 import 'package:flutter_chat_app/bloc/messages/messages_state.dart';
-import '../repos/message_repository.dart';
-import '../services/api_service.dart';
+import 'package:flutter_chat_app/repos/message_repository.dart';
+import 'package:flutter_chat_app/services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final int chatId;
@@ -30,7 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // Establish WS connection (once per chat)
     repo.connect(widget.chatId);
 
-    // Bloc – now handles live WS events internally
+    // Bloc – handles live WS events internally
     _bloc = MessagesBloc(repo: repo, chatId: widget.chatId);
   }
 
@@ -39,12 +40,13 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _scroll.dispose();
     _bloc.close();
+    context.read<MessageRepository>().disconnect();   // ← close socket
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final meId = _api.currentUserId;           // ← whatever type you use (int / String)
+    final meId = _api.currentUserId;
 
     return BlocProvider.value(
       value: _bloc,
@@ -52,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: AppBar(title: const Text('Chat')),
         body: Column(
           children: [
-            // —————————— MESSAGE LIST ——————————
+            /* -------- MESSAGE LIST -------- */
             Expanded(
               child: BlocConsumer<MessagesBloc, MessagesState>(
                 listener: (_, state) {
@@ -90,7 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   }
 
-                  final msgs = (state is MessagesLoaded)
+                  final msgs = state is MessagesLoaded
                       ? state.messages
                       : (state as MessagesSending).currentMessages;
 
@@ -98,16 +100,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _scroll,
                     itemCount: msgs.length,
                     itemBuilder: (_, i) {
-                      final m = msgs[i] as Map<String, dynamic>;
+                      final m = msgs[i];
 
-                      // robust sender check (covers int / String mix)
                       final sender =
                           m['senderId'] ?? m['sender_id'] ?? m['sender'];
                       final isMe =
                           sender != null &&
                           sender.toString() == meId.toString();
 
-                      // decode ‘content’ safely (may arrive JSON-encoded)
                       final raw = m['content'] ?? m['text'] ?? '';
                       String display;
                       if (raw is String && raw.trim().startsWith('{')) {
@@ -149,7 +149,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-            // —————————— INPUT ——————————
+            /* -------- INPUT -------- */
             SafeArea(
               child: Padding(
                 padding:
@@ -172,7 +172,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               child: SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
                               ),
                             )
                           : IconButton(
