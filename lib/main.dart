@@ -1,18 +1,43 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'services/auth_repository.dart';
-import 'bloc/auth_bloc.dart';
-import 'bloc/auth_event.dart';
-import 'bloc/auth_state.dart';
-import 'home.dart'; // Aynı klasörde home.dart dosyasını import ediyoruz
 
-void main() {
+import 'package:flutter_chat_app/services/api_service.dart';
+import 'package:flutter_chat_app/helper/database_helper.dart';
+
+import 'package:flutter_chat_app/repos/auth_repository.dart';
+import 'package:flutter_chat_app/repos/chat_repository.dart';
+import 'package:flutter_chat_app/repos/message_repository.dart';
+
+import 'package:flutter_chat_app/bloc/auth/auth_bloc.dart';
+import 'package:flutter_chat_app/views/login_view.dart';
+import 'package:flutter_chat_app/views/register_view.dart';
+import 'package:flutter_chat_app/views/home_view.dart';
+import 'package:flutter_chat_app/views/chat_view.dart'; 
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1️⃣ Initialize your low-level services
+  final dbHelper    = DatabaseHelper.instance;
+  final apiService  = ApiService();
+  await apiService.loadToken(); // pull JWT out of SharedPreferences
+
+  // 2️⃣ Create your repositories
+  final authRepo    = AuthRepository(apiService: apiService, dbHelper: dbHelper);
+  final chatRepo    = ChatRepository(apiService: apiService, dbHelper: dbHelper);
+  final messageRepo = MessageRepository(apiService: apiService, dbHelper: dbHelper);
+
   runApp(
-    RepositoryProvider(
-      create: (_) => AuthRepository(),
+    MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider.value(value: apiService),
+        RepositoryProvider.value(value: dbHelper),
+        RepositoryProvider.value(value: authRepo),
+        RepositoryProvider.value(value: chatRepo),
+        RepositoryProvider.value(value: messageRepo),
+      ],
       child: BlocProvider(
-        create: (ctx) => AuthBloc(ctx.read<AuthRepository>()),
+        create: (_) => AuthBloc(authRepo),
         child: const MainApp(),
       ),
     ),
@@ -24,83 +49,24 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(title: 'Flutter Chat App', home: const LoginPage());
-  }
-}
-
-class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final _username = TextEditingController();
-  final _pass = TextEditingController();
-
-  @override
-  void dispose() {
-    _username.dispose();
-    _pass.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthFailure) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.error)));
-        } else if (state is AuthAuthenticated) {
-          // Başarılı login sonrası HomePage'e yönlendir
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomePage()),
-          );
-        }
+    return MaterialApp(
+      title: 'Flutter Chat App',
+      initialRoute: '/login',
+      routes: {
+        '/login': (_) => const LoginView(),
+        '/register': (_) => const RegisterView(),
+        '/home': (_) => const HomeView(),
+        '/': (c) => const HomeView(),
+        // you *can* also put '/' here, but because chat needs an arg
       },
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Login')),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextField(
-                controller: _username,
-                decoration: const InputDecoration(labelText: 'Username'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _pass,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
-              const SizedBox(height: 24),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  if (state is AuthLoading) {
-                    return const CircularProgressIndicator();
-                  }
-                  return SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        context.read<AuthBloc>().add(
-                          AuthLoginRequested(_username.text, _pass.text),
-                        );
-                      },
-                      child: const Text('Login'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/chat') {
+          final chatId = settings.arguments as int;
+          return MaterialPageRoute(builder: (_) => ChatScreen(chatId: chatId));
+        }
+        // fallback (optional)
+        return MaterialPageRoute(builder: (_) => const HomeView());
+      },
     );
   }
 }
