@@ -21,7 +21,7 @@ class MessageRepository {
     required this.dbHelper,
   });
 
-  /* ---------- history ---------- */
+  /* ──────────────────── history ──────────────────── */
 
   Future<List<Map<String, dynamic>>> getMessages(
     int chatId, {
@@ -48,9 +48,18 @@ class MessageRepository {
     }
   }
 
-  /// --- FIXED: robust sender extraction ---
+  /* ─────── ‼ KEY FIX: extract every possible sender key ─────── */
+
   Map<String, dynamic> _sanitize(Map<String, dynamic> m, int chatId) {
-    dynamic rawSender = m['sender_id'] ?? m['senderId'] ?? m['sender'];
+    /// 1. try every key the backend might use
+    dynamic rawSender = m['sender_id'] ??
+        m['senderId'] ??
+        m['sender']    ??
+        m['user_id']   ??   // ← NEW
+        m['userId']    ??   // ← NEW
+        m['user'];
+
+    /// 2. convert to int when possible
     int? senderId;
     if (rawSender is int) {
       senderId = rawSender;
@@ -60,17 +69,20 @@ class MessageRepository {
       senderId = rawSender['id'] as int?;
     }
 
+    /// 3. **NO LONGER** default everything to my own id – that broke L/R layout
+    ///    if the backend truly gives us no sender, leave it null
     return <String, dynamic>{
       if (m['id'] != null) 'id': m['id'],
-      'chatId': chatId,
-      'senderId': senderId ?? apiService.currentUserId,
-      'content': m['content'] ?? m['text'] ?? '',
-      'timestamp':
-          m['timestamp'] ?? m['created_at'] ?? DateTime.now().toIso8601String(),
+      'chatId'   : chatId,
+      'senderId' : senderId,
+      'content'  : m['content'] ?? m['text'] ?? '',
+      'timestamp': m['timestamp'] ??
+          m['created_at'] ??
+          DateTime.now().toIso8601String(),
     };
   }
 
-  /* ---------- WebSocket ---------- */
+  /* ──────────────────── WebSocket ─────────────────── */
 
   void connect(int chatId) {
     if (_connectedChatId == chatId && _channel != null) return;
