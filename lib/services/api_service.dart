@@ -23,7 +23,6 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
   }
-  
 
   /// Helper to build headers with or without Authorization.
   Map<String, String> _headers({bool jsonEncode = true, bool useForm = false}) {
@@ -38,8 +37,6 @@ class ApiService {
     }
     return headers;
   }
-
-  
 
   // === Authentication ===
 
@@ -65,7 +62,8 @@ class ApiService {
       return token;
     } else {
       throw Exception(
-          'Login failed [${response.statusCode}]: ${response.body}');
+        'Login failed [${response.statusCode}]: ${response.body}',
+      );
     }
   }
 
@@ -93,7 +91,8 @@ class ApiService {
     );
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception(
-          'Signup failed [${response.statusCode}]: ${response.body}');
+        'Signup failed [${response.statusCode}]: ${response.body}',
+      );
     }
   }
 
@@ -123,7 +122,21 @@ class ApiService {
     throw Exception('Failed to fetch user $userId [${res.statusCode}]');
   }
 
-    /// Decode the stored JWT and return the `user_id` claim (or null).
+  /// Fetch the currently authenticated user's profile.
+  Future<Map<String, dynamic>> fetchCurrentUser() async {
+    final res = await _client.get(
+      Uri.parse('$_baseUrl/users/me'),
+      headers: _headers(),
+    );
+    if (res.statusCode == 200) {
+      return json.decode(res.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Failed to fetch current user [${res.statusCode}]: ${res.body}',
+    );
+  }
+
+  /// Decode the stored JWT and return the `user_id` claim (or null).
   int? get currentUserId {
     if (_token == null) return null;
     final parts = _token!.split('.');
@@ -144,7 +157,6 @@ class ApiService {
       Uri.parse('$_baseUrl/chats/'),
       headers: _headers(),
     );
-    print('[ApiService] fetchChats headers: ${_headers()}');
     if (res.statusCode == 200) {
       return json.decode(res.body) as List<dynamic>;
     }
@@ -159,10 +171,7 @@ class ApiService {
     final res = await _client.post(
       Uri.parse('$_baseUrl/chats/'),
       headers: _headers(),
-      body: json.encode({
-        'name': name,
-        'user_ids': userIds,
-      }),
+      body: json.encode({'name': name, 'user_ids': userIds}),
     );
     if (res.statusCode == 201 || res.statusCode == 200) {
       return json.decode(res.body) as Map<String, dynamic>;
@@ -194,7 +203,8 @@ class ApiService {
       return json.decode(res.body) as List<dynamic>;
     }
     throw Exception(
-        'Failed to fetch messages for chat $chatId [${res.statusCode}]');
+      'Failed to fetch messages for chat $chatId [${res.statusCode}]',
+    );
   }
 
   // === WebSocket for real-time chat ===

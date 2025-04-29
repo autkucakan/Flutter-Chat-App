@@ -22,17 +22,29 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
 
+  int? _currentUserId;
+
   @override
   void initState() {
     super.initState();
     _api = context.read<ApiService>();
+
+    _bootstrapCurrentUser(); // ⇒ sets _currentUserId
+
     final repo = context.read<MessageRepository>();
-
-    // Establish WS connection (once per chat)
-    repo.connect(widget.chatId);
-
-    // Bloc – handles live WS events internally
+    repo.connect(widget.chatId);                 // live WS for this chat
     _bloc = MessagesBloc(repo: repo, chatId: widget.chatId);
+  }
+
+  Future<void> _bootstrapCurrentUser() async {
+    try {
+      final user = await _api.fetchCurrentUser();
+      if (mounted) {
+        setState(() => _currentUserId = user['id'] as int?);
+      }
+    } catch (e) {
+      debugPrint('Couldn’t fetch current user: $e');
+    }
   }
 
   @override
@@ -40,13 +52,44 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _scroll.dispose();
     _bloc.close();
-    context.read<MessageRepository>().disconnect();   // ← close socket
+    context.read<MessageRepository>().disconnect();
     super.dispose();
   }
 
+  /* ---------- helpers ---------- */
+
+  int? _senderIdFromMessage(Map<String, dynamic> m) {
+    final raw = m['sender_id'] ??
+        m['senderId'] ??
+        (m['sender'] is Map ? m['sender']['id'] : m['sender']);
+    if (raw == null) return null;
+    return raw is int ? raw : int.tryParse(raw.toString());
+  }
+
+  String _extractText(dynamic raw) {
+    if (raw is! String) return raw.toString();
+    if (raw.trimLeft().startsWith('{')) {
+      try {
+        final decoded = json.decode(raw);
+        if (decoded is Map<String, dynamic>) {
+          return (decoded['text'] ?? decoded['content'] ?? raw).toString();
+        }
+      } catch (_) {}
+    }
+    return raw;
+  }
+
+  /* ---------- UI ---------- */
+
   @override
   Widget build(BuildContext context) {
-    final meId = _api.currentUserId;
+    if (_currentUserId == null) {
+      // Don’t build the list until we know who “me” is.
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final meId = _currentUserId!;
 
     return BlocProvider.value(
       value: _bloc,
@@ -57,19 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
             /* -------- MESSAGE LIST -------- */
             Expanded(
               child: BlocConsumer<MessagesBloc, MessagesState>(
-                listener: (_, state) {
-                  if (state is MessagesLoaded) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scroll.hasClients) {
-                        _scroll.animateTo(
-                          _scroll.position.maxScrollExtent,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    });
-                  }
-                },
+                listener: (_, __) => _jumpToBottom(),
                 builder: (_, state) {
                   if (state is MessagesLoading) {
                     return const Center(child: CircularProgressIndicator());
@@ -92,7 +123,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   }
 
-                  final msgs = state is MessagesLoaded
+                  final msgs = (state is MessagesLoaded)
                       ? state.messages
                       : (state as MessagesSending).currentMessages;
 
@@ -101,30 +132,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: msgs.length,
                     itemBuilder: (_, i) {
                       final m = msgs[i];
+                      final senderId = _senderIdFromMessage(m);
+                      final isMe = senderId != null && senderId == meId;
 
-                      final sender =
-                          m['senderId'] ?? m['sender_id'] ?? m['sender'];
-                      final isMe =
-                          sender != null &&
-                          sender.toString() == meId.toString();
-
-                      final raw = m['content'] ?? m['text'] ?? '';
-                      String display;
-                      if (raw is String && raw.trim().startsWith('{')) {
-                        try {
-                          final decoded = json.decode(raw);
-                          display = decoded is Map<String, dynamic>
-                              ? (decoded['text'] ??
-                                      decoded['content'] ??
-                                      raw)
-                                  .toString()
-                              : raw;
-                        } catch (_) {
-                          display = raw;
-                        }
-                      } else {
-                        display = raw.toString();
-                      }
+                      final text = _extractText(
+                        m['content'] ?? m['text'] ?? '',
+                      );
 
                       return Align(
                         alignment: isMe
@@ -140,7 +153,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Text(display),
+                          child: Text(text),
                         ),
                       );
                     },
@@ -159,9 +172,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message',
-                        ),
+                        decoration:
+                            const InputDecoration(hintText: 'Type a message'),
                         onSubmitted: (_) => _send(),
                       ),
                     ),
@@ -189,6 +201,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  void _jumpToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _send() {
