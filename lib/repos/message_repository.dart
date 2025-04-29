@@ -1,5 +1,6 @@
 // message_repository.dart
 import 'dart:convert';
+import 'dart:async';
 import 'package:web_socket_channel/io.dart';
 import 'package:flutter_chat_app/services/api_service.dart';
 import 'package:flutter_chat_app/helper/database_helper.dart';
@@ -8,6 +9,9 @@ class MessageRepository {
   final ApiService apiService;
   final DatabaseHelper dbHelper;
   IOWebSocketChannel? _channel;
+
+  final _incoming = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get messageStream => _incoming.stream;
 
   MessageRepository({required this.apiService, required this.dbHelper});
 
@@ -82,12 +86,15 @@ class MessageRepository {
       }
 
       await dbHelper.insertMessage(toInsert);
+
+      _incoming.add(toInsert);
+
     });
   }
 
-  Stream<Map<String, dynamic>> get messageStream => _channel!.stream.map(
+/*   Stream<Map<String, dynamic>> get messageStream => _channel!.stream.map(
     (d) => json.decode(d as String) as Map<String, dynamic>,
-  );
+  ); */
 
   Future<void> sendMessage(String content) async {
     if (_channel == null) {
@@ -98,6 +105,7 @@ class MessageRepository {
 
   Future<void> disconnect() async {
     await _channel?.sink.close();
+    await _incoming.close();
     _channel = null;
   }
 }

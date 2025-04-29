@@ -23,3 +23,9 @@ class SendMessage extends MessagesEvent {
     required this.content,
   });
 }
+
+/// Fired by the repository when a WS message arrives
+class IncomingMessageReceived extends MessagesEvent {
+  final Map<String, dynamic> message;
+  IncomingMessageReceived(this.message);
+}

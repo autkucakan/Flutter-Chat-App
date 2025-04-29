@@ -26,10 +26,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _api = context.read<ApiService>();
     final repo = context.read<MessageRepository>();
-    // Establish WS connection if you want live updates
+
+    // Establish WS connection (once per chat)
     repo.connect(widget.chatId);
-    _bloc = MessagesBloc(repo: repo, chatId: widget.chatId)
-      ..add(WorkspaceMessages(chatId: widget.chatId));
+
+    // Bloc – now handles live WS events internally
+    _bloc = MessagesBloc(repo: repo, chatId: widget.chatId);
   }
 
   @override
@@ -42,7 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final meId = _api.currentUserId;
+    final meId = _api.currentUserId;           // ← whatever type you use (int / String)
 
     return BlocProvider.value(
       value: _bloc,
@@ -50,6 +52,7 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: AppBar(title: const Text('Chat')),
         body: Column(
           children: [
+            // —————————— MESSAGE LIST ——————————
             Expanded(
               child: BlocConsumer<MessagesBloc, MessagesState>(
                 listener: (_, state) {
@@ -58,7 +61,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (_scroll.hasClients) {
                         _scroll.animateTo(
                           _scroll.position.maxScrollExtent,
-                          duration: const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 250),
                           curve: Curves.easeOut,
                         );
                       }
@@ -77,10 +80,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           Text('Error: ${state.error}'),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed:
-                                () => _bloc.add(
-                                  WorkspaceMessages(chatId: widget.chatId),
-                                ),
+                            onPressed: () => _bloc.add(
+                              WorkspaceMessages(chatId: widget.chatId),
+                            ),
                             child: const Text('Retry'),
                           ),
                         ],
@@ -88,56 +90,55 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   }
 
-                  final msgs =
-                      (state is MessagesLoaded)
-                          ? state.messages
-                          : (state as MessagesSending).currentMessages;
+                  final msgs = (state is MessagesLoaded)
+                      ? state.messages
+                      : (state as MessagesSending).currentMessages;
 
                   return ListView.builder(
                     controller: _scroll,
                     itemCount: msgs.length,
                     itemBuilder: (_, i) {
                       final m = msgs[i] as Map<String, dynamic>;
-                      final isMe = m['senderId'] == meId;
 
-                      // 1) grab whatever key you have…
+                      // robust sender check (covers int / String mix)
+                      final sender =
+                          m['senderId'] ?? m['sender_id'] ?? m['sender'];
+                      final isMe =
+                          sender != null &&
+                          sender.toString() == meId.toString();
+
+                      // decode ‘content’ safely (may arrive JSON-encoded)
                       final raw = m['content'] ?? m['text'] ?? '';
                       String display;
-
-                      // 2) if it's a JSON-string, decode it and pull out the inner text
                       if (raw is String && raw.trim().startsWith('{')) {
                         try {
                           final decoded = json.decode(raw);
-                          if (decoded is Map<String, dynamic>) {
-                            display =
-                                (decoded['text'] ?? decoded['content'] ?? raw)
-                                    .toString();
-                          } else {
-                            display = raw;
-                          }
+                          display = decoded is Map<String, dynamic>
+                              ? (decoded['text'] ??
+                                      decoded['content'] ??
+                                      raw)
+                                  .toString()
+                              : raw;
                         } catch (_) {
                           display = raw;
                         }
                       } else {
-                        // 3) otherwise just show it
                         display = raw.toString();
                       }
 
                       return Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 8,
-                          ),
+                              vertical: 4, horizontal: 8),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color:
-                                isMe
-                                    ? Colors.blueAccent.withOpacity(0.7)
-                                    : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(16),
+                            color: isMe
+                                ? Colors.blueAccent.withOpacity(0.75)
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Text(display),
                         ),
@@ -148,11 +149,11 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-            // —————————————————————————————
-            // message input
+            // —————————— INPUT ——————————
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
                     Expanded(
@@ -165,24 +166,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                     BlocBuilder<MessagesBloc, MessagesState>(
-                      builder: (_, state) {
-                        final sending = state is MessagesSending;
-                        return sending
-                            ? const Padding(
+                      builder: (_, state) => (state is MessagesSending)
+                          ? const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 8),
                               child: SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             )
-                            : IconButton(
+                          : IconButton(
                               icon: const Icon(Icons.send),
                               onPressed: _send,
-                            );
-                      },
+                            ),
                     ),
                   ],
                 ),
