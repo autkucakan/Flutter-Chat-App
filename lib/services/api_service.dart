@@ -1,24 +1,26 @@
-// lib/services/api_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/io.dart';
+import 'package:flutter_chat_app/config/config.dart';
+
+final String apiUrl = Config.apiUrl;
+final String apiBaseUrl = Config.apiBaseUrl;
+final int? apiPort = Config.apiPort;
 
 class ApiService {
   // === Configuration ===
-  static const String _baseUrl = 'http://172.16.12.215:8000/api';
-  static const String _tokenKey = 'jwt_token';
+  static final String _baseUrl = apiBaseUrl;
+  static final String _tokenKey = 'jwt_token';
 
   final http.Client _client;
   String? _token;
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Expose the current JWT (or null if not logged in)
   String? get token => _token;
 
-  /// Load JWT from local cache (call this on app start).
+  /// Load JWT from local cache
   Future<void> loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
@@ -67,7 +69,7 @@ class ApiService {
     }
   }
 
-  /// Log out by clearing the in-memory and persisted JWT.
+  /// Log out by clearing the in-memory JWT.
   Future<void> logout() async {
     _token = null;
     final prefs = await SharedPreferences.getInstance();
@@ -136,7 +138,7 @@ class ApiService {
     );
   }
 
-  /// Decode the stored JWT and return the `user_id` claim (or null).
+  /// Decode the stored JWT and return the user_id
   int? get currentUserId {
     if (_token == null) return null;
     final parts = _token!.split('.');
@@ -209,23 +211,21 @@ class ApiService {
 
   // === WebSocket for real-time chat ===
 
-  /// Connect to the WebSocket for a given chat.
-  /// Remember to .stream.listen(...) and .sink.add(...) on the returned channel.
-  IOWebSocketChannel connectToChat(int chatId) {
+    IOWebSocketChannel connectToChat(int chatId) {
     if (_token == null) {
       throw Exception('You must be logged in to open a WebSocket.');
     }
     final uri = Uri(
       scheme: 'ws',
-      host: '172.16.12.215',
-      port: 8000,
+      host: apiUrl,
+      port: apiPort,
       path: '/api/ws/chat/$chatId',
       queryParameters: {'token': _token},
     );
     return IOWebSocketChannel.connect(uri.toString());
   }
 
-  /// Clean up the HTTP client when done.
+  /// Clean up the HTTP client
   void dispose() {
     _client.close();
   }

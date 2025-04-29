@@ -1,7 +1,7 @@
 name: flutter_chat_app
-description: "A new Flutter project."
+description: "A Flutter Chat Application Project."
 publish_to: 'none'
-version: 0.1.0
+version: 0.9.0
 
 environment:
   sdk: ^3.7.2
@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.0
+  flutter_dotenv: ^5.2.1
   http: ^1.3.0
   path: ^1.9.1
   path_provider: ^2.1.5
@@ -26,5 +27,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
+  assets:
+    - .env
 

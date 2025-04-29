@@ -2,16 +2,15 @@ import 'package:flutter_chat_app/services/api_service.dart';
 import 'package:flutter_chat_app/helper/database_helper.dart';
 
 class ChatRepository {
-  final ApiService apiService; 
+  final ApiService apiService;
   final DatabaseHelper dbHelper;
 
-  ChatRepository({
-    required this.apiService,
-    required this.dbHelper,
-  });
+  ChatRepository({required this.apiService, required this.dbHelper});
 
-  /// Get chats: try cache, otherwise fetch+cache from API.
-  Future<List<Map<String, dynamic>>> getChats({bool forceRefresh = false}) async {
+  /// try cache, otherwise fetch+cache from API.
+  Future<List<Map<String, dynamic>>> getChats({
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh) {
       final local = await dbHelper.getChats();
       if (local.isNotEmpty) {
@@ -53,7 +52,7 @@ class ChatRepository {
     }
   }
 
-  /// Fetch a single chat (remote → cache) with local fallback.
+  /// Fetch a single chat with local fallback.
   Future<Map<String, dynamic>> getChat(int chatId) async {
     try {
       final chat = await apiService.fetchChat(chatId);

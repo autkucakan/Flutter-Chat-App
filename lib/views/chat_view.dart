@@ -1,4 +1,3 @@
-// lib/views/chat_view.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,9 +7,6 @@ import 'package:flutter_chat_app/bloc/messages/messages_state.dart';
 import 'package:flutter_chat_app/repos/message_repository.dart';
 import 'package:flutter_chat_app/services/api_service.dart';
 
-/// Chat screen that shows history + live messages for a single chat.
-/// ─ My messages  : right-hand side, primary-colour bubble
-/// ─ Their messages: left-hand side, surfaceVariant bubble
 class ChatScreen extends StatefulWidget {
   final int chatId;
   const ChatScreen({Key? key, required this.chatId}) : super(key: key);
@@ -64,14 +60,14 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  /* ───────────── helper: extract sender id robustly ───────────── */
+  /* ───────────── helper: extract sender id ───────────── */
 
   int? _senderId(Map<String, dynamic> m) {
     final raw = m['senderId'] ??
         m['sender_id'] ??
         m['sender'] ??
-        m['userId']   ||  // ← NEW
-        m['user_id']  ||  // ← NEW
+        m['userId']   ||
+        m['user_id']  ||
         m['user'];
     if (raw == null) return null;
     if (raw is int) return raw;
@@ -110,7 +106,7 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: AppBar(title: const Text('Chat')),
         body: Column(
           children: [
-            /// -------------- message list --------------
+            /// ─────────────── message list ───────────────
             Expanded(
               child: BlocConsumer<MessagesBloc, MessagesState>(
                 listener: (_, __) => _jumpToBottom(),
@@ -136,8 +132,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
                       return Align(
                         alignment: isMe
-                            ? Alignment.centerRight   // my bubble → right
-                            : Alignment.centerLeft,   // their bubble → left
+                            ? Alignment.centerRight 
+                            : Alignment.centerLeft,   
                         child: _MessageBubble(
                           text : _content(m),
                           isMe : isMe,
@@ -149,7 +145,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-            /// -------------- input row ----------------
+            /// ─────────── input row ──────────
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),

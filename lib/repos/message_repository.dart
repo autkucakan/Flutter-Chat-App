@@ -1,4 +1,3 @@
-// lib/repos/message_repository.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/io.dart';
@@ -16,10 +15,7 @@ class MessageRepository {
   final _incoming = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get messageStream => _incoming.stream;
 
-  MessageRepository({
-    required this.apiService,
-    required this.dbHelper,
-  });
+  MessageRepository({required this.apiService, required this.dbHelper});
 
   /* ──────────────────── history ──────────────────── */
 
@@ -48,18 +44,15 @@ class MessageRepository {
     }
   }
 
-  /* ─────── ‼ KEY FIX: extract every possible sender key ─────── */
-
   Map<String, dynamic> _sanitize(Map<String, dynamic> m, int chatId) {
-    /// 1. try every key the backend might use
-    dynamic rawSender = m['sender_id'] ??
+    dynamic rawSender =
+        m['sender_id'] ??
         m['senderId'] ??
-        m['sender']    ??
-        m['user_id']   ??   // ← NEW
-        m['userId']    ??   // ← NEW
+        m['sender'] ??
+        m['user_id'] ??
+        m['userId'] ??
         m['user'];
 
-    /// 2. convert to int when possible
     int? senderId;
     if (rawSender is int) {
       senderId = rawSender;
@@ -69,16 +62,13 @@ class MessageRepository {
       senderId = rawSender['id'] as int?;
     }
 
-    /// 3. **NO LONGER** default everything to my own id – that broke L/R layout
-    ///    if the backend truly gives us no sender, leave it null
     return <String, dynamic>{
       if (m['id'] != null) 'id': m['id'],
-      'chatId'   : chatId,
-      'senderId' : senderId,
-      'content'  : m['content'] ?? m['text'] ?? '',
-      'timestamp': m['timestamp'] ??
-          m['created_at'] ??
-          DateTime.now().toIso8601String(),
+      'chatId': chatId,
+      'senderId': senderId,
+      'content': m['content'] ?? m['text'] ?? '',
+      'timestamp':
+          m['timestamp'] ?? m['created_at'] ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -94,8 +84,10 @@ class MessageRepository {
     _channel = apiService.connectToChat(chatId);
 
     _wsSub = _channel!.stream.listen((data) async {
-      final msg =
-          _sanitize(json.decode(data as String) as Map<String, dynamic>, chatId);
+      final msg = _sanitize(
+        json.decode(data as String) as Map<String, dynamic>,
+        chatId,
+      );
       await dbHelper.insertMessage(msg);
       _incoming.add(msg);
     });

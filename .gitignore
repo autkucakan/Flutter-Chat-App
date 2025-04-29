@@ -7,7 +7,11 @@
 .buildlog/
 .history
 
+# Environment
+.env
 
+# Config
+/lib/config/config.dart
 
 # Flutter repo-specific
 /bin/cache/
